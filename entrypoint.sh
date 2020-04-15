@@ -24,7 +24,7 @@ if [ "$1" == "--force" -o "$1" == "-f" ]; then
     FORCE=1
 fi
 
-CERT_DIR=/cert/$CERT
+CERT_DIR=/etc/letsencrypt/live/$CERT
 
 if [ ! -d "$CERT_DIR" ]; then
     echo "directory of cert not found: $CERT_DIR"
@@ -32,12 +32,13 @@ if [ ! -d "$CERT_DIR" ]; then
 fi
 
 CERT_MARK=$CERT_DIR/certbot-deploy-k8s-secret.mark
+TIMESTAMP_CERT=$(date +%s)
 
 if [ -z "$FORCE" ]; then
     if [ -f "$CERT_MARK" ]; then
         last_update=$(cat $CERT_MARK)
-        timestamp_cert=$(stat -c %Y $CERT_DIR/fullchain.pem)
-        if [ "$last_update" == "$timestamp_cert" ]; then
+        TIMESTAMP_CERT=$(stat -c %Y $CERT_DIR/fullchain.pem)
+        if [ "$last_update" == "$TIMESTAMP_CERT" ]; then
             echo "cert is up-to-date, skip deploy"
             exit 0
         fi
@@ -64,16 +65,27 @@ curl -k -s -w "\n%{http_code}" \
     https://kubernetes/api/v1/namespaces/${NAMESPACE}/secrets/${SECRET} \
     > /update_result.txt
 result_code=$(tail -n 1 /update_result.txt)
-if [ "$result_code" == "404" ]; then
+if [ -n "$(echo $result_code | grep '^40')" ]; then
     echo "Secret not found, do create..."
-    curl -k \
+    curl -k -s -w "\n%{http_code}" \
     --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
     -XPOST  \
     -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
     -H "Accept: application/json, */*" \
     -H "Content-Type: application/json" \
     -d @/secret.json \
-    https://kubernetes/api/v1/namespaces/${NAMESPACE}/secrets
-else
+    https://kubernetes/api/v1/namespaces/${NAMESPACE}/secrets \
+    > /update_result.txt
+    if [ -z "$(echo $result_code | grep '^20')" ]; then
+        head -n -1 /update_result.txt
+        exit 1
+    else
+        echo "Secret create successfully"
+    fi
+elif [ -z "$(echo $result_code | grep '^20')" ]
     head -n -1 /update_result.txt
+    exit 1
+else
+    echo "Secret update successfully"
 fi
+echo $TIMESTAMP_CERT > $CERT_MARK

@@ -8,9 +8,9 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
     && apk add curl
 
 # certificates
-# /certs/abc.com/fullchain.pem
-# /certs/abc.com/privkey.pem
-VOLUME /certs
+# /etc/letsencrypt/live/abc.com/fullchain.pem
+# /etc/letsencrypt/live/abc.com/privkey.pem
+VOLUME /etc/letsencrypt
 
 # cert need to deploy
 ENV CERT ""
