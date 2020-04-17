@@ -52,7 +52,7 @@ cat /secret-template.json | \
 	sed "s/TLSKEY/$(cat ${CERT_DIR}/privkey.pem |  base64 | tr -d '\n')/" \
 	> /secret.json
 
-ls /secret.json || exit 1
+ls /secret.json > /dev/null || exit 1
 
 # update secret
 curl -k -s -w "\n%{http_code}" \
