@@ -82,7 +82,7 @@ if [ -n "$(echo $result_code | grep '^40')" ]; then
     else
         echo "Secret create successfully"
     fi
-elif [ -z "$(echo $result_code | grep '^20')" ]
+elif [ -z "$(echo $result_code | grep '^20')" ]; then
     head -n -1 /update_result.txt
     exit 1
 else
